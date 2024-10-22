@@ -40,3 +40,12 @@ Exploring the use of general-purpose VLMs for various computer vision downstream
 Standard approaches to data augmentation involves applying transformations to input images to generate new image samples. However, these new images lack diversity and are unable to alter high-level semantic content, such as an animal species present in a scene. 
 
 - [Effective Data Augmentation With Diffusion Models](https://openreview.net/forum?id=ZWzUA9zeAg) - Paper exploring the use of diffusion models for data augmentation using text-to-image and image-to-image generative tasks
+
+### Flowchart
+
+
+- [Flowchart knowledge extraction on image processing](https://ieeexplore.ieee.org/abstract/document/4634384/citations?tabFilter=papers#citations) - Paper presenting an image processing method to extract text and geometrical shapes from flowchart images, linking components via flow lines, and outputs the extracted information as XML metadata for archiving, knowledge sharing, or further use.
+
+- [Towards Automatic Parsing of Structured Visual Content through the Use of Synthetic Data](https://ieeexplore.ieee.org/abstract/document/9956453?casa_token=ObhFf9NRYHcAAAAA:2iMJTWYncFKzyPTEKLa3sCQZYi1C-nRf_cziG-yrMoTeZyKmdau26dAmrgPiPamp6RmSwYju00yFgw) - Synthetic dataset for flowcharts 
+
+- [Tool to Extract and Summarize Methodologies of Research Articles for Visually Impaired Researchers](https://ieeexplore.ieee.org/abstract/document/9103342?casa_token=MRMZtOX6oEYAAAAA:VudG8GZ5Fk8YXmLoCVrq_qMuBjC-TNoGnNe_R1TiqGV2i_JTz1_C96bGf9WD0jsHqgjaOWKgBiGY) - Extract flowchart information for visually impaired students
