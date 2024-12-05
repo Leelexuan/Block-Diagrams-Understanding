@@ -1,0 +1,34 @@
+\documentclass{article}
+\usepackage{hyperref}
+
+\setlength{\paperwidth}{21cm}   % A4
+\setlength{\paperheight}{29.7cm}% A4
+\setlength\topmargin{-0.5cm}    
+\setlength\oddsidemargin{0cm}   
+\setlength\textheight{24.7cm} 
+\setlength\textwidth{16.0cm}
+\setlength\columnsep{0.6cm}  
+\newlength\titlebox 
+\setlength\titlebox{5cm}
+\setlength\headheight{5pt}   
+\setlength\headsep{0pt}
+\pagestyle{plain}
+
+\title{1D Project Writeup}
+\author{Team 16 \\ Lee Le Xuan, Keith Low, Isaac Koh, Aqif Yeo}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{Initial Project Idea --- Block Diagram Extraction (Research)}
+To use computer vision to detect blocks, extract information from the blocks, identify relationships represented by arrows and connections, and create a structured representation of the diagram such as triplets --- $\langle \mathit{head, relation, tail} \rangle$.
+
+\section*{Background}
+Block diagrams are used to visualize the relationships between entities to represent a larger part of a system, workflow or process. They are often found in technical documentation, software design documents, and other forms of documentation. The task of extracting block diagrams can be considered a subtask of document understanding, which is the task of extracting data from unstructured documents. By extracting the information and relationships between blocks from images, we enable downstream tasks such as knowledge graph construction, question answering, and summarization.
+
+\section*{How Computer Vision is Relevant}
+Block diagrams can be complex, consisting of blocks, connections, and text annotations which requires a more specialised approach to image processing and pattern recognition to accurately identify and classify these components. As we are working with visual information, we would require computer vision tasks such as object detection to detect blocks and connections, optical character recognition (OCR) to extract text annotations. 
+
+\end{document}
