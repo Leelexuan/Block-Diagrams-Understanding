@@ -74,15 +74,14 @@ class XMLDataset(Dataset):
              # Apply transformation if provided
             if self.transform:
                 # Convert boxes to a format suitable for albumentations (COCO format)
-                transformed = self.transform(image=np.array(image), bboxes=boxes, category=labels)
+                transformed_image = self.transform(image)
                 
                 # Update the data with the transformed image and boxes
-                image = transformed['image']
-                target['boxes'] = transformed['bboxes']
+                image = transformed_image
 
                 
-            target['boxes'] = torch.tensor(target['boxes'])
-            target['labels'] = torch.tensor(target['labels'])
+            target['boxes'] = torch.tensor(target['boxes'], dtype=torch.float32)
+            target['labels'] = torch.tensor(target['labels'], dtype=torch.int64)
             
             
             return (image, target)
