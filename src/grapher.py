@@ -1,8 +1,9 @@
 from lib import get_direct_descendents, get_label
+from pathlib import Path
 import numpy as np
 import requests
+import validators
 import subprocess
-import os
 
 
 class Grapher:
@@ -40,12 +41,43 @@ class Grapher:
             return False
 
     def validate_url(self, entity_label: str):
+        return validators.url(entity_label)
+
+    def is_image_url(self, url: str) -> bool:
+        """Checks if a given URL points to a valid image."""
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            response = requests.get(url=url, headers=headers)
+            if response.status_code == 200:
+                content_type = response.headers.get("content-type")
+                return content_type.startswith("image/")
+        except requests.RequestException:
+            return False
+        return False
+
+    def format_entity_label(self, entity_label: str):
+        """
+        Converts an entity label into the appropriate Mermaid Markdown format.
+        If the label is an image URL, it formats it as an <img> tag.
+        Otherwise, it formats it as text.
+        """
         if self.is_image_url(entity_label):
             return f"A{self.vertices[entity_label]}({self.img_template.format(entity_label=entity_label)})"
         return f'A{self.vertices[entity_label]}("{entity_label}")'
 
+    def add_triplet_to_graph(self, triplet):
+        parent, relation, child = triplet
+        parent_node = self.format_entity_label(parent)
+        child_node = self.format_entity_label(child)
+
+        self.graph += f'\n    {parent_node} -- "{relation}" --> {child_node}'
+
     # TODO: Change way to sample children. Issues currently: Possible for children to be resampled i.e. duplicates may be present and fixed children to sample results in similar looking tree structures.
-    def sample_children(self, parent, children, max_children_per_parent=3) -> list:
+    def sample_children(
+        self, parent, children, max_children_per_parent=3, accept_images=False
+    ) -> list:
         num_children_to_sample = np.random.randint(1, max_children_per_parent)
 
         num_children = len(children)
@@ -67,6 +99,16 @@ class Grapher:
             child = subject["value"]
             relation = subject["property"]
 
+            # if descendent is a URL that is not an image, continue because we don't want to add it to the graph
+            if self.is_image_url(child) and not accept_images:
+                continue
+            elif self.validate_url(child):
+                continue
+
+            # sometimes the nodes connect to themselves, so we don't want to add them to the graph
+            if child == parent:
+                continue
+
             if self.vertices.get(child) is None:
                 self.count += 1
                 self.vertices[child] = self.count
@@ -75,10 +117,6 @@ class Grapher:
 
             if triplet not in self.triplets:
                 self.triplets.add(triplet)
-                parent_node = self.validate_url(parent)
-                child_node = self.validate_url(child)
-
-                self.graph += f'\n    {parent_node} -- "{relation}" --> {child_node}'
 
             # if descendent is not a passable entity, then do not add to sample list
             child_entity_code = subject["qid"]
@@ -105,19 +143,44 @@ class Grapher:
             queue += children_sampled
             depth += 1
 
-    def export(self):
-        cwd = os.getcwd()
-        output_folder = "output"
-        md_file = "file.md"
-        img_file = "img.png"
+        self.triplets = sorted(
+            self.triplets, key=lambda x: (self.vertices[x[0]], self.vertices[x[2]])
+        )
 
-        file_path = os.path.join(cwd, output_folder, md_file)
-        image_path = os.path.join(cwd, output_folder, img_file)
+        for triplet in self.triplets:
+            self.add_triplet_to_graph(triplet)
+
+    def export(self):
+        output_folder = Path.cwd() / "output"
+        output_folder.mkdir(parents=True, exist_ok=True)
+
+        images_folder = output_folder / "images"
+        images_folder.mkdir(parents=True, exist_ok=True)
+
+        svgs_folder = output_folder / "svgs"
+        svgs_folder.mkdir(parents=True, exist_ok=True)
+
+        markdown_folder = output_folder / "markdown"
+        markdown_folder.mkdir(parents=True, exist_ok=True)
+
+        annotations_folder = output_folder / "annotations"
+        annotations_folder.mkdir(parents=True, exist_ok=True)
+
+        md_file = f"{self.root_entity_code}.md"
+        img_file = f"{self.root_entity_code}.png"
+        svg_file = f"{self.root_entity_code}.svg"
+        annotations_file = f"{self.root_entity_code}.json"
+
+        file_path = markdown_folder / md_file
+        image_path = images_folder / img_file
+        svg_path = svgs_folder / svg_file
 
         content = f"```mermaid\n{self.graph}\n```"
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
-        command = ["mmdc.cmd", "-i", file_path, "-o", image_path, "--scale", "10"]
+        command = ["mmdc", "-i", file_path, "-o", image_path, "--scale", "5"]
 
-        subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+        command = ["mmdc", "-i", file_path, "-o", svg_path, "--scale", "5"]
+
+        subprocess.call(command, encoding="utf-8")
