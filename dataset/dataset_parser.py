@@ -82,6 +82,8 @@ class XMLDataset(Dataset):
                 
             target['boxes'] = torch.tensor(target['boxes'], dtype=torch.float32)
             target['labels'] = torch.tensor(target['labels'], dtype=torch.int64)
+            target['image_id'] = torch.tensor(target['labels'], dtype=torch.int64)
+            target['area'] = torch.tensor(target['labels'], dtype=torch.int64)
             
             
             return (image, target)
