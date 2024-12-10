@@ -4,6 +4,7 @@ import numpy as np
 import requests
 import validators
 import subprocess
+import random
 
 
 class Grapher:
@@ -12,21 +13,21 @@ class Grapher:
         self.root_entity_code = entity_code
         self.root = get_label(entity_code)
         self.vertices = {self.root: 0}
-        self.edges = {}
         self.count = 0
         self.img_template = "<img src='{entity_label}' width='50' height='50'>"
         # triplets are related (head, relation, tail)
         self.triplets = set()
         self.explored = set()
+        self.edges = set()
 
     def reset(self):
         self.graph = "graph TD"
         self.vertices = {self.root: 0}
-        self.edges = {}
         self.root = self.root
         self.count = 0
         self.triplets = set()
         self.explored = set()
+        self.edges = set()
 
     def is_image_url(self, string: str):
         try:
@@ -117,6 +118,7 @@ class Grapher:
 
             if triplet not in self.triplets:
                 self.triplets.add(triplet)
+                self.edges.add((self.vertices[parent], self.vertices[child]))
 
             # if descendent is not a passable entity, then do not add to sample list
             child_entity_code = subject["qid"]
@@ -181,6 +183,41 @@ class Grapher:
 
         command = ["mmdc", "-i", file_path, "-o", image_path, "--scale", "5"]
 
-        command = ["mmdc", "-i", file_path, "-o", svg_path, "--scale", "5"]
+        subprocess.run(command, encoding="utf-8")
 
-        subprocess.call(command, encoding="utf-8")
+
+class BlockTransformer(Grapher):
+    def __init__(self, entity_code):
+        super().__init__(entity_code)
+        self.block_types = ["Process", "Decision", "Data", "Connection", "Terminator"]
+
+    def has_children(self, node):
+        vertex = self.vertices[node]
+        children = [edge[1] for edge in self.edges if edge[0] == vertex]
+        return len(children) > 0
+
+    def transform_block(self, node):
+        """Transform node based on its type (leaf or non-leaf)."""
+        if not self.has_children(node):
+            # Randomize leaf nodes: 50/50 chance of being Terminator or Process
+            return random.choice(["Terminator", "Process"])
+        else:
+            # Non-leaf nodes: probabilities for Process, Data, and Decision
+            return random.choices(
+                ["Process", "Data", "Decision"], weights=[0.6, 0.3, 0.1], k=1
+            )[0]
+
+    def transform_graph(self):
+        """Apply transformations to all nodes in the graph and check connections."""
+        transformed_graph = {}
+
+        for node, id in self.vertices.items():
+            node_class = self.transform_block(node)
+            transformed_graph[id] = node_class
+
+        self.vertex_classes = transformed_graph
+
+    def add_triplet_to_graph(self, triplet):
+        parent, relation, child = triplet
+        parent_node = self.format_entity_label(parent)
+        child_node = self.format_entity_label(child)
