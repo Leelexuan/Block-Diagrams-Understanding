@@ -94,7 +94,10 @@ def verify_entity_code(entity_code):
 def get_label(entity_code):
     try:
         result = query_wd(entity_code_to_label_query.format(entity_code=entity_code))
-        return result["results"]["bindings"][0]["label"]["value"]
+        if result["results"]["bindings"] != []:
+            return result["results"]["bindings"][0]["label"]["value"]
+        else:
+            return None
     except IndexError as e:
         raise e
 

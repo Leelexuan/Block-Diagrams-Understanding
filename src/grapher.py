@@ -1,5 +1,6 @@
 from lib import get_direct_descendents, get_label
 from pathlib import Path
+from annotations import generate_annotations_with_bboxes
 import numpy as np
 import requests
 import validators
@@ -111,6 +112,9 @@ class Grapher:
             if child == parent:
                 continue
 
+            if self.vertices.get(parent) is None:
+                self.count += 1
+                self.vertices[parent] = self.count
             if self.vertices.get(child) is None:
                 self.count += 1
                 self.vertices[child] = self.count
@@ -146,7 +150,8 @@ class Grapher:
                 continue
 
             parent_label = get_label(parent)
-            print(parent, parent_label)
+            if not parent_label or not parent:
+                continue
 
             children_sampled = self.sample_children(parent_label, children)
             queue += children_sampled
@@ -178,19 +183,28 @@ class Grapher:
         md_file = f"{self.root_entity_code}.md"
         img_file = f"{self.root_entity_code}.png"
         svg_file = f"{self.root_entity_code}.svg"
-        annotations_file = f"{self.root_entity_code}.json"
+        annotations_file = f"{self.root_entity_code}.xml"
 
         file_path = markdown_folder / md_file
         image_path = images_folder / img_file
         svg_path = svgs_folder / svg_file
+        annotations_path = annotations_folder / annotations_file
 
         content = f"```mermaid\n{self.graph}\n```"
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
-        command = ["mmdc.cmd", "-i", file_path, "-o", image_path, "--scale", "5"]
-
+        command = ["mmdc.cmd", "-i", file_path, "-o", svg_path]
         subprocess.run(command, encoding="utf-8")
+
+        command = ["mmdc.cmd", "-i", file_path, "-o", image_path, "--scale", "4"]
+        subprocess.run(command, encoding="utf-8")
+
+        output_svg_path = svgs_folder / (Path(svg_path).stem + "-1.svg")
+        xml_annotations = generate_annotations_with_bboxes(output_svg_path, self)
+
+        with open(annotations_path, "w") as f:
+            f.write(xml_annotations)
 
 
 class BlockTransformer(Grapher):
@@ -211,9 +225,11 @@ class BlockTransformer(Grapher):
             # Randomize leaf nodes: 50/50 chance of being Terminator or Process
             return random.choice(["Terminator", "Process"])
         else:
-            # Non-leaf nodes: probabilities for Process, Data, and Decision
+            # Non-leaf nodes: probabilities for Process, Data, Decision, and Connection
             return random.choices(
-                ["Process", "Data", "Decision"], weights=[0.6, 0.3, 0.1], k=1
+                ["Process", "Data", "Decision", "Connection"],
+                weights=[0.4, 0.2, 0.2, 0.2],
+                k=1,
             )[0]
 
     def transform_graph(self):
@@ -286,8 +302,10 @@ class BlockTransformer(Grapher):
         self.triplets = sorted(
             self.triplets, key=lambda x: (self.vertices[x[0]], self.vertices[x[2]])
         )
-        
+
         self.transform_graph()
 
         for triplet in self.triplets:
             self.add_triplet_to_graph(triplet)
+
+        return self.root_entity_code
