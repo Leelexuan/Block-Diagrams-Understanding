@@ -87,9 +87,10 @@ class Grapher:
         limit = max_children_per_parent * 5
 
         while (
-            num_children_to_sample <= len(children)
-            and num_children_to_sample != 0
-            and limit != 0
+            num_children_to_sample > 0
+            and num_children_to_sample <= len(children)
+            and limit > 0
+            and num_children > 0
         ):
             idx = np.random.randint(num_children)
             if idx in explored:
@@ -132,11 +133,17 @@ class Grapher:
     def randomize_graph(self, max_depth=10):
         self.reset()
         queue = [self.root_entity_code]
+        explored_entities = set()
         depth = 0
 
         while queue != [] and depth < max_depth:
             parent = queue.pop(0)
+            explored_entities.add(parent)
+            if parent in explored_entities:
+                continue
             children = get_direct_descendents(parent)
+            if not children or len(children) == 0:
+                continue
 
             parent_label = get_label(parent)
             print(parent, parent_label)
@@ -181,7 +188,7 @@ class Grapher:
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(content)
 
-        command = ["mmdc", "-i", file_path, "-o", image_path, "--scale", "5"]
+        command = ["mmdc.cmd", "-i", file_path, "-o", image_path, "--scale", "5"]
 
         subprocess.run(command, encoding="utf-8")
 
@@ -198,6 +205,8 @@ class BlockTransformer(Grapher):
 
     def transform_block(self, node):
         """Transform node based on its type (leaf or non-leaf)."""
+        if self.root == node:
+            return random.choices(["Terminator", "Process"], weights=[0.8, 0.2], k=1)[0]
         if not self.has_children(node):
             # Randomize leaf nodes: 50/50 chance of being Terminator or Process
             return random.choice(["Terminator", "Process"])
@@ -217,7 +226,68 @@ class BlockTransformer(Grapher):
 
         self.vertex_classes = transformed_graph
 
+    def format_entity_label(self, entity_label: str):
+        """
+        Converts an entity label into the appropriate Mermaid Markdown format.
+        If the label is an image URL, it formats it as an <img> tag.
+        Otherwise, it formats it as text.
+        """
+        node_id = self.vertices[entity_label]
+        node_class = self.vertex_classes[node_id]
+
+        if self.is_image_url(entity_label):
+            label = self.img_template.format(entity_label=entity_label)
+        else:
+            label = f'"{entity_label}"'
+
+        if node_class == "Terminator":  # Eclipse
+            node = f"([{label}])"
+        elif node_class == "Process":  # Rectangle
+            node = f"[{label}]"
+        elif node_class == "Decision":  # Diamond
+            node = f"{{{label}}}"
+        elif node_class == "Data":  # Parallelogram
+            node = f"[/{label}/]"
+        elif node_class == "Connection":  # Circle
+            node = f"(({label}))"
+
+        return f"A{self.vertices[entity_label]}{node}"
+
     def add_triplet_to_graph(self, triplet):
         parent, relation, child = triplet
         parent_node = self.format_entity_label(parent)
         child_node = self.format_entity_label(child)
+
+        self.graph += f'\n    {parent_node} -- "{relation}" --> {child_node}'
+
+    def randomize_graph(self, max_depth=10):
+        self.reset()
+        queue = [self.root_entity_code]
+        explored_entities = set()
+        depth = 0
+
+        while queue != [] and depth < max_depth:
+            parent = queue.pop(0)
+            if parent in explored_entities:
+                continue
+            explored_entities.add(parent)
+
+            children = get_direct_descendents(parent)
+            if not children or len(children) == 0:
+                continue
+
+            parent_label = get_label(parent)
+            print(parent, parent_label)
+
+            children_sampled = self.sample_children(parent_label, children)
+            queue += children_sampled
+            depth += 1
+
+        self.triplets = sorted(
+            self.triplets, key=lambda x: (self.vertices[x[0]], self.vertices[x[2]])
+        )
+        
+        self.transform_graph()
+
+        for triplet in self.triplets:
+            self.add_triplet_to_graph(triplet)
